@@ -1,29 +1,6 @@
 #include <stdio.h>
 #include <malloc.h>
-
-#ifndef NULL
-    #define NULL 0
-#endif /// NULL
-
-typedef enum{
-    leaf = 0,
-    node = 1
-} node_type_t;
-
-typedef struct bplus_node_t{
-
-    struct bplus_node_t *parent;        //node's parent
-    struct bplus_node_t *prev;          //node's left
-    struct bplus_node_t *next;          //node's right
-    struct bplus_node_t *child;         //node's child
-
-    int value;                          //node's value
-    int count;                          //node's count
-    node_type_t type;                   //node's type
-
-} bplus_node_t;
-
-inline void list_print(bplus_node_t *);
+#include "bplus_tree.h"
 
 bplus_node_t *list_header(bplus_node_t *bplus_node){
     while(bplus_node -> prev != NULL)
@@ -40,12 +17,6 @@ bplus_node_t *list_index(bplus_node_t *bplus_node, int index){
     return bplus_node;
 }
 
-typedef struct bplus_tree_t{
-
-    bplus_node_t *root;                 //b+tree's gen
-    int level;                          //b+tree's level
-
-} bplus_tree_t;
 
 inline bplus_tree_t*
 new_bplus_tree(int level){
@@ -66,6 +37,8 @@ new_bplus_node(int value, node_type_t type){
     bplus_node -> count = 0;
     bplus_node -> prev =
     bplus_node -> next =
+    bplus_node -> left_link =
+    bplus_node -> right_link =
     bplus_node -> parent =
     bplus_node -> child = NULL;
     return bplus_node;
@@ -107,7 +80,7 @@ bplus_tree_search_leaf(bplus_node_t *current_node, int value){
 }
 
 inline void
-bplus_tree_adjust(bplus_tree_t *bplus_tree, bplus_node_t *current_node, int value){
+bplus_tree_adjust(bplus_tree_t *bplus_tree, bplus_node_t *current_node){
 
     //if need not to adjust
     if(current_node -> count <= bplus_tree -> level){
@@ -132,8 +105,11 @@ bplus_tree_adjust(bplus_tree_t *bplus_tree, bplus_node_t *current_node, int valu
             parent2 -> prev = parent1;
 
             //cut
+            mid_node -> prev -> right_link = mid_node;
+            mid_node -> left_link = mid_node -> prev;
             mid_node -> prev -> next = NULL;
             mid_node -> prev = NULL;
+
             //count
             while(current_node != NULL){
                 current_node -> count -= mid_node -> count;
@@ -143,6 +119,42 @@ bplus_tree_adjust(bplus_tree_t *bplus_tree, bplus_node_t *current_node, int valu
         }
         else{
 
+            bplus_node_t *mid_node = list_index(current_node, current_node -> count / 2);
+            bplus_node_t *parent = current_node -> parent;
+
+            bplus_node_t *new_node = new_bplus_node(mid_node -> value, node);
+            new_node -> value = mid_node -> value;
+            new_node -> prev = parent;
+            new_node -> next = parent -> next;
+
+            if(parent -> next != NULL)
+                parent -> next -> prev = new_node;  //error
+            parent -> next = new_node;
+            //cut
+            mid_node -> prev -> right_link = mid_node;
+            mid_node -> left_link = mid_node -> prev;
+            mid_node -> prev -> next = NULL;
+            mid_node -> prev = NULL;
+
+            //count
+            new_node -> count = parent -> count;
+            bplus_node_t *temp_node = parent;
+            while(temp_node != NULL){
+                temp_node -> count ++;
+                parent = temp_node;
+                temp_node = temp_node -> prev;
+            }
+
+            while(current_node != NULL){
+                current_node -> count -= mid_node -> count;
+                current_node = current_node -> next;
+            }
+            //link
+            new_node -> child = mid_node;
+            mid_node -> parent = new_node;
+
+            //continue to adjust
+            bplus_tree_adjust(bplus_tree, parent);
         }
     }
 }
@@ -167,12 +179,16 @@ bplus_tree_insert(bplus_tree_t *bplus_tree, int value){
     }
     else{
         bplus_node_t *location = bplus_tree_search_leaf(root, value);
-        //printf("(%d, %d)\n", location -> type, location -> value);
         if(location -> value < value){
             new_node -> next = location -> next;
             new_node -> prev = location;
             if(location -> next != NULL){
                 location -> next -> prev = new_node;
+            }
+            if(location -> right_link != NULL){
+                new_node -> right_link = location -> right_link;
+                location -> right_link -> left_link = new_node;
+                location -> right_link = NULL;
             }
             location -> next = new_node;
         }
@@ -191,7 +207,7 @@ bplus_tree_insert(bplus_tree_t *bplus_tree, int value){
         header_node = new_node;
         new_node = new_node -> prev;
     }
-    bplus_tree_adjust(bplus_tree, header_node, -1);
+    bplus_tree_adjust(bplus_tree, header_node);
 }
 
 inline void
@@ -203,16 +219,34 @@ inline void
 bplus_tree_print(bplus_node_t *current_node){
 
     printf("[");
-
     while(current_node != NULL){
         printf("%d (%d) ", current_node -> value, current_node -> count);
         if(current_node -> child != NULL)
             bplus_tree_print(current_node -> child);
         current_node = current_node -> next;
     }
-
    printf("]");
 
+}
+
+inline void
+bplus_tree_scan(bplus_tree_t *bplus_tree){
+
+    bplus_node_t *temp_node = bplus_tree -> root;
+
+    while(temp_node -> type == node){
+        temp_node = temp_node -> child;
+    }
+
+    printf("\n[");
+    while(temp_node != NULL){
+        printf("%d ", temp_node -> value, temp_node -> type);
+        if(temp_node -> right_link != NULL)
+            temp_node = temp_node -> right_link;
+        else
+            temp_node = temp_node -> next;
+    }
+    printf("]\n");
 }
 
 inline void
@@ -224,21 +258,8 @@ list_print(bplus_node_t *header){
     puts("");
 }
 
-inline void
-debug(){
-    bplus_tree_t *bplus_tree = new_bplus_tree(3);
-    int value;
-    while(scanf("%d", &value) != EOF){
-        bplus_tree_insert(bplus_tree, value);
-    }
-    bplus_tree_print(bplus_tree -> root);
-}
-
-int main(){
-
-    debug();
-    return 0;
-
-}
-
 //10 50 30 20 40 100
+//10 20 30 40 50 60
+//10 20 30 5 21 22 100 40
+//1 2 3 4 5 6 7 8 9 10 100 90 80 70 60 50 40 30 20 21 22 23 33 44
+//1 2 3 4 5 6 7 8 9 10 100 90 80
