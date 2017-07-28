@@ -7,7 +7,8 @@
 
 typedef enum{
     leaf = 0,
-    node = 1
+    node = 1,
+    root = 2
 } node_type_t;
 
 typedef struct bplus_node_t{
@@ -20,7 +21,8 @@ typedef struct bplus_node_t{
     struct bplus_node_t *left_link;     //left   brother linker
 
     int value;                          //node's value
-    int count;                          //node's count
+    int right_count;                    //node's right count
+    int left_count;                     //node's left count
     node_type_t type;                   //node's type
 
 } bplus_node_t;
@@ -29,28 +31,58 @@ typedef struct bplus_tree_t{
 
     bplus_node_t *root;                 //b+tree's gen
     int level;                          //b+tree's level
+    int min_level;                      //b+tree's min level
 
 } bplus_tree_t;
 
-//list
+///list
 bplus_node_t* list_header(bplus_node_t *bplus_node);
 bplus_node_t* list_index(bplus_node_t *bplus_node, int index);
+inline void list_print(bplus_node_t *header);
 
-//new
+///new
+//new tree
 inline bplus_tree_t* new_bplus_tree(int level);
+
+//new node
 inline bplus_node_t* new_bplus_node(int value, node_type_t type);
 
-//option
+///option
+//init
 inline void bplus_tree_init(bplus_tree_t *bplus_tree, int level);
-inline void bplus_tree_adjust(bplus_tree_t *bplus_tree, bplus_node_t *current_node);
-inline void bplus_tree_update_min(bplus_tree_t *bplus_tree, bplus_node_t *bplus_node, int value);
-inline void bplus_tree_insert(bplus_tree_t *bplus_tree, int value);
-inline void bplus_tree_delete();
-inline bplus_node_t* bplus_tree_search_leaf(bplus_node_t *current_node, int value);
 
-//print debug
+//insert adjust
+inline void bplus_tree_insert_adjust(bplus_tree_t *bplus_tree, bplus_node_t *current_node);
+
+//delete adjust
+inline void bplus_tree_delete_adjust(bplus_tree_t *bplus_tree, bplus_node_t *current_node);
+
+//update left min value
+inline void bplus_tree_delete_update(bplus_tree_t *bplus_tree, bplus_node_t *bplus_node, int value);
+
+//update left min value
+inline void bplus_tree_insert_update(bplus_tree_t *bplus_tree, bplus_node_t *bplus_node, int value);
+
+//insert into b+ tree
+inline void bplus_tree_insert(bplus_tree_t *bplus_tree, int value);
+
+//delete from b+ tree
+inline void bplus_tree_delete();
+
+//search a lower leaf
+inline bplus_node_t* bplus_tree_search_lower_leaf(bplus_node_t *current_node, int value);
+
+//search a equal leaf
+inline bplus_node_t* bplus_tree_search_equal_leaf(bplus_node_t *current_node, int value);
+
+//search a upper leaf
+inline bplus_node_t* bplus_tree_search_upper_leaf(bplus_node_t *current_node, int value);
+
+///print debug
+//print
 inline void bplus_tree_print(bplus_node_t *current_node);
-inline void bplus_tree_scan(bplus_tree_t *bplus_tree);
-inline void list_print(bplus_node_t *header);
+
+//scan
+inline int bplus_tree_scan(bplus_tree_t *bplus_tree);
 
 #endif // BPLUS_TREE_H_INCLUDED
